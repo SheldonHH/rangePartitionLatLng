@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	"github.com/gocql/gocql"
 	_ "github.com/meirf/gopart"
 	"io/ioutil"
+	"log"
 	"os"
 	"sort"
 	"strconv"
@@ -45,6 +47,57 @@ func (usc USCity) getLngLat() string {
 }
 
 func main() {
+
+	cluster := gocql.NewCluster("127.0.0.1:9042")
+	cluster.Keyspace = "singapore"
+	cluster.Consistency = gocql.Quorum
+	session, _ := cluster.CreateSession()
+	defer session.Close()
+	//err :=
+	//session.Query(`SELECT part_id, lat_long, score FROM acs WHERE timeline = ? LIMIT 1`,
+	//	"me").WithContext(ctx).Consistency(gocql.One).
+	//err := session.Query(`SELECT id, text FROM tweet WHERE timeline = ? LIMIT 1`,
+	//	"me").WithContext(ctx).Consistency(gocql.One).Scan(&id, &text)
+	//err := session.Query("select lat_long from acs where pk1 = ?", "28000")
+
+	//scanner := session.Query(`select lat_long from acs where part_id = ?`,
+	//	"28000").WithContext(ctx).Iter().Scanner()
+	//for scanner.Next() {
+	var (
+		//id    gocql.UUID
+		score float32
+	)
+	if err := session.Query(`SELECT score FROM acs  `).Consistency(gocql.One).Scan(&score); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Tweet:", score)
+	//}
+	// scanner.Err() closes the iterator, so scanner nor iter should be used afterwards.
+	//if err := scanner.Err(); err != nil {
+	//	log.Fatal(err)
+	//}
+	//if err := session.Query(`INSERT INTO tweet (timeline, id, text) VALUES (?, ?, ?)`,
+	//	"me", gocql.TimeUUID(), "hello world").Exec(); err != nil {
+	//	log.Fatal(err)
+	//}
+	//
+	//var id gocql.UUID
+	//var text string
+	//
+	//if err := session.Query(`SELECT id, text FROM tweet WHERE timeline = ? LIMIT 1`,
+	//	"me").Consistency(gocql.One).Scan(&id, &text); err != nil {
+	//	log.Fatal(err)
+	//}
+	//fmt.Println("Tweet:", id, text)
+	//
+	//iter := session.Query(`SELECT id, text FROM tweet WHERE timeline = ?`, "me").Iter()
+	//for iter.Scan(&id, &text) {
+	//	fmt.Println("Tweet:", id, text)
+	//}
+	//if err := iter.Close(); err != nil {
+	//	log.Fatal(err)
+	//}
+
 	filename := "/Users/mac/GolandProjects/rangePartitionLatLng/usss.json"
 	jsonFile, err := os.Open(filename)
 	if err != nil {
@@ -76,6 +129,7 @@ func main() {
 	})
 
 	const partitionSize = 9000
+
 	var count = 0
 	for idxRange := range Partition(len(data.USCity), partitionSize) {
 		count++
