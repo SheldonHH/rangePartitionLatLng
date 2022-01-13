@@ -66,9 +66,9 @@ func main() {
 	}
 
 	// Print
-	for _, item := range data.USCity {
-		fmt.Printf("Name: item.usstate: %s \n", item.Usstate)
-	}
+	//for _, item := range data.USCity {
+	//	fmt.Printf("Name: item.usstate: %s \n", item.Usstate)
+	//}
 
 	//sort
 	sort.Slice(data.USCity, func(i, j int) bool {
@@ -76,8 +76,10 @@ func main() {
 	})
 
 	const partitionSize = 9000
+	var count = 0
 	for idxRange := range Partition(len(data.USCity), partitionSize) {
-		bulkOperation(data.USCity[idxRange.Low:idxRange.High], idxRange.Low)
+		count++
+		bulkOperation(data.USCity[idxRange.Low:idxRange.High], idxRange.Low, count)
 	}
 
 	//for _, item := range data.USCity {
@@ -115,15 +117,19 @@ func Partition(collectionLen, partitionSize int) chan IdxRange {
 	return c
 }
 
-func bulkOperation(x []USCity, low int) {
+func bulkOperation(x []USCity, low int, count int) {
 	//fmt.Println(x)
-
+	sLow := strconv.Itoa(low)
+	res, err := rdb.Do(ctx, "ACL", "SETUSER", ""+strconv.Itoa(count), "on", "~"+sLow, "+get", ">alanpassword").Result()
+	if err != nil {
+		//panic("everything ok, nil found")
+		fmt.Println(err)
+	}
+	fmt.Printf("res: %s", res)
 	for _, item := range x {
 		//sLow := fmt.Sprintf("%f", low)
-		sLow := strconv.Itoa(low)
 		//fmt.Printf(sLow)
 		rdb.ZAdd(ctx, sLow, &redis.Z{Score: float64(item.Score), Member: item.getLngLat()})
-
 		//rdb.ZAdd(ctx, sLow, &redis.Z{Score: float64(item.Score), Member: sLow})
 	}
 
