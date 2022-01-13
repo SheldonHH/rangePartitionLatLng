@@ -12,6 +12,13 @@ import (
 	"strconv"
 )
 
+var rdb = redis.NewClient(&redis.Options{
+	Addr:     "localhost:6379",
+	Password: "", // no password set
+	DB:       1,  // use default DB
+})
+var ctx = context.Background()
+
 type Data struct {
 	USCity []USCity `json:"uscity"`
 }
@@ -36,8 +43,6 @@ func (usc USCity) getLngLat() string {
 	//}
 	return fmt.Sprintf("%g", usc.Longitude) + "," + fmt.Sprintf("%g", usc.Latitude)
 }
-
-var ctx = context.Background()
 
 func main() {
 	filename := "/Users/mac/GolandProjects/rangePartitionLatLng/usss.json"
@@ -70,7 +75,7 @@ func main() {
 		return data.USCity[i].Score < data.USCity[j].Score
 	})
 
-	const partitionSize = 2000
+	const partitionSize = 9000
 	for idxRange := range Partition(len(data.USCity), partitionSize) {
 		bulkOperation(data.USCity[idxRange.Low:idxRange.High], idxRange.Low)
 	}
@@ -112,17 +117,14 @@ func Partition(collectionLen, partitionSize int) chan IdxRange {
 
 func bulkOperation(x []USCity, low int) {
 	//fmt.Println(x)
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       1,  // use default DB
-	})
-	ctx := context.Background()
+
 	for _, item := range x {
 		//sLow := fmt.Sprintf("%f", low)
 		sLow := strconv.Itoa(low)
 		//fmt.Printf(sLow)
 		rdb.ZAdd(ctx, sLow, &redis.Z{Score: float64(item.Score), Member: item.getLngLat()})
+
+		//rdb.ZAdd(ctx, sLow, &redis.Z{Score: float64(item.Score), Member: sLow})
 	}
 
 }
