@@ -32,6 +32,11 @@ type USCity struct {
 	Latitude  float64 `json:"lat"`
 }
 
+type Lat_Long struct {
+	Lat float32
+	Lng float32
+}
+
 //type IUSCity interface {
 //	getUSCity() USCity
 //}
@@ -63,14 +68,22 @@ func main() {
 	//scanner := session.Query(`select lat_long from acs where part_id = ?`,
 	//	"28000").WithContext(ctx).Iter().Scanner()
 	//for scanner.Next() {
+
 	var (
 		//id    gocql.UUID
 		score float32
+		//lat_long Lat_Long
+		lat_long struct {
+			Lat float32
+			Lng float32
+		}
 	)
-	if err := session.Query(`SELECT score FROM acs  `).Consistency(gocql.One).Scan(&score); err != nil {
+	if err := session.Query(`SELECT score, lat_long FROM acs`).Consistency(gocql.One).Scan(&score, &lat_long.Lat, &lat_long.Lng); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("Tweet:", score)
+	fmt.Println("lat:", lat_long.Lat)
+	fmt.Println("long:", lat_long.Lng)
 	//}
 	// scanner.Err() closes the iterator, so scanner nor iter should be used afterwards.
 	//if err := scanner.Err(); err != nil {
