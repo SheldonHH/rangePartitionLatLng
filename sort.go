@@ -28,8 +28,8 @@ type Data struct {
 type USCity struct {
 	Usstate   string  `json:"usstate"` // .csv column headers
 	Score     int     `json:"score"`
-	Longitude float64 `json:"lng"`
-	Latitude  float64 `json:"lat"`
+	Longitude float32 `json:"lng"`
+	Latitude  float32 `json:"lat"`
 }
 
 type Lat_Long struct {
@@ -42,7 +42,7 @@ type Lat_Long struct {
 //}
 
 func (usc USCity) getUSCity() string {
-	return usc.Usstate + "," + strconv.FormatInt(int64(usc.Score), 10) + "," + strconv.FormatFloat(usc.Longitude, 'E', -1, 64) + "," + strconv.FormatFloat(usc.Latitude, 'E', -1, 64)
+	return usc.Usstate + "," + strconv.FormatInt(int64(usc.Score), 10) + "," + strconv.FormatFloat(float64(usc.Longitude), 'E', -1, 32) + "," + strconv.FormatFloat(float64(usc.Latitude), 'E', -1, 32)
 }
 func (usc USCity) getLngLat() string {
 	//if s, err := strconv.ParseFloat(usc.Longitude, 64); err == nil {
@@ -51,9 +51,9 @@ func (usc USCity) getLngLat() string {
 	return fmt.Sprintf("%g", usc.Longitude) + "," + fmt.Sprintf("%g", usc.Latitude)
 }
 
-func main() {
+var cluster = gocql.NewCluster("127.0.0.1:9042")
 
-	cluster := gocql.NewCluster("127.0.0.1:9042")
+func main() {
 	cluster.Keyspace = "singapore"
 	cluster.Consistency = gocql.Quorum
 	session, _ := cluster.CreateSession()
@@ -84,6 +84,7 @@ func main() {
 	fmt.Println("Tweet:", score)
 	fmt.Println("lat:", lat_long.Lat)
 	fmt.Println("long:", lat_long.Lng)
+
 	//}
 	// scanner.Err() closes the iterator, so scanner nor iter should be used afterwards.
 	//if err := scanner.Err(); err != nil {
@@ -193,11 +194,22 @@ func bulkOperation(x []USCity, low int, count int) {
 		fmt.Println(err)
 	}
 	fmt.Printf("res: %s", res)
+
+	cluster.Keyspace = "singapore"
+	cluster.Consistency = gocql.Quorum
+	session, _ := cluster.CreateSession()
+	defer session.Close()
 	for _, item := range x {
 		//sLow := fmt.Sprintf("%f", low)
 		//fmt.Printf(sLow)
 		rdb.ZAdd(ctx, sLow, &redis.Z{Score: float64(item.Score), Member: item.getLngLat()})
 		//rdb.ZAdd(ctx, sLow, &redis.Z{Score: float64(item.Score), Member: sLow})
+		if err := session.Query(`INSERT INTO singapore.acs (part_id, score, lat_long) VALUES (?, ?,(?,?))`,
+			sLow, float32(item.Score), item.Longitude, item.Latitude).WithContext(ctx).Exec(); err != nil {
+			//fmt.Println("Nazi")
+			log.Fatal(err)
+			//fmt.Println("Nazi")
+		}
 	}
 
 }
